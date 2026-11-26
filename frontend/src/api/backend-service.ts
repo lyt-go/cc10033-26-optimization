@@ -29,12 +29,19 @@ export async function runAction(
   key: string,
   id: number,
   action: string,
-): Promise<ActionResult> {
+  extra: Record<string, unknown> = {},
+): Promise<ActionResult & { result?: Record<string, any>; data?: Record<string, any> }> {
   const response = await request(`/api/${key}/${id}/actions`, {
     method: 'POST',
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, ...extra }),
   })
   return await response.json()
+}
+
+export async function getJson<T = any>(path: string): Promise<T> {
+  const response = await request(path)
+  if (!response.ok) throw new Error(`接口返回 ${response.status}，数据未更新`)
+  return (await response.json()) as T
 }
 
 export async function downloadEntries(

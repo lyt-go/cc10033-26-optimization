@@ -94,5 +94,74 @@ def create_entry(module: str, payload: EntryPayload) -> ActionResult:
 @router.post("/{module}/{entry_id}/actions", response_model=ActionResult)
 def run_action(module: str, entry_id: int, payload: ActionPayload) -> ActionResult:
     service = require_service(module)
-    entry, message = service.run_action(entry_id, payload.action.strip())
-    return ActionResult(ok=entry is not None, message=message, entry=entry)
+    body = payload.model_dump(mode="python")
+    body["action"] = payload.action.strip()
+    outcome = service.handle_action(entry_id, payload.action.strip(), body)
+    # 兼容只返回二元组的旧服务
+    if len(outcome) == 2:
+        entry, message = outcome
+        extra = None
+    else:
+        entry, message, extra = outcome
+    ok = entry is not None
+    if isinstance(extra, dict) and extra.get("ok") is False:
+        ok = False
+    return ActionResult(ok=ok, message=message, entry=entry,
+                        result=extra if isinstance(extra, dict) else None,
+                        data=extra if isinstance(extra, dict) else None)
+
+
+# ── 容量评估回执 / 派发配额 的只读子资源（路径均为 int 前缀，不与 {entry_id} 冲突） ──
+
+@router.get("/scalable_pool/{entry_id}/receipts")
+def list_receipts(entry_id: int) -> dict[str, Any]:
+    service = require_service("scalable_pool")
+    return {"items": service.list_evaluations(entry_id), "total": len(service.list_evaluations(entry_id))}
+
+
+@router.get("/scalable_pool/{entry_id}/evaluations")
+def list_evaluations(entry_id: int) -> dict[str, Any]:
+    service = require_service("scalable_pool")
+    details = service.evaluation_details(entry_id)
+    return details
+
+
+@router.get("/scalable_pool/{entry_id}/evaluation-details")
+def evaluation_details(entry_id: int) -> dict[str, Any]:
+    service = require_service("scalable_pool")
+    return service.evaluation_details(entry_id)
+
+
+@router.get("/scalable_pool/{entry_id}/receipts/{receipt_id}")
+def get_receipt(entry_id: int, receipt_id: str) -> dict[str, Any]:
+    service = require_service("scalable_pool")
+    receipt = service.get_receipt(receipt_id, entry_id=entry_id)
+    if receipt is None:
+        raise HTTPException(status_code=404, detail=f"评估回执 {receipt_id} 不存在")
+    return receipt
+
+
+@router.get("/scalable_pool/{entry_id}/confirmations")
+def list_confirmations(entry_id: int) -> dict[str, Any]:
+    service = require_service("scalable_pool")
+    items = service.list_confirmations(entry_id)
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/scalable_pool/{entry_id}/effective-capacity")
+def effective_capacity(entry_id: int) -> dict[str, Any]:
+    service = require_service("scalable_pool")
+    return service.effective_capacity_info(entry_id)
+
+
+@router.get("/scheduler/{entry_id}/dispatch-quota")
+def dispatch_quota(entry_id: int) -> dict[str, Any]:
+    service = require_service("scheduler")
+    return service.dispatch_quota(entry_id)
+
+
+@router.get("/scheduler/{entry_id}/todos")
+def scheduler_todos(entry_id: int) -> dict[str, Any]:
+    service = require_service("scheduler")
+    items = service.scheduler_todos(entry_id)
+    return {"items": items, "total": len(items)}

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
@@ -19,6 +19,8 @@ class ActionResult(BaseModel):
     ok: bool
     message: str
     entry: dict[str, Any] | None = None
+    result: dict[str, Any] | None = None
+    data: dict[str, Any] | None = None
 
 
 class EntryPayload(BaseModel):
@@ -27,5 +29,10 @@ class EntryPayload(BaseModel):
 
 
 class ActionPayload(BaseModel):
+    # 允许 receipt_id / actual_instances / prediction 等富动作字段随动作一起提交
+    model_config = ConfigDict(extra="allow")
+
     action: str
     remark: str | None = None
+    data: dict[str, Any] | None = None
+    values: dict[str, Any] | None = None

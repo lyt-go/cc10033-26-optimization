@@ -28,6 +28,26 @@
       </span>
     </p>
 
+    <!-- 弹性伸缩：评估回执 / 三态详情 / 容量确认 -->
+    <template v-if="meta.key === 'scalable_pool'">
+      <ScalableCapacityPanel
+        v-for="row in rows"
+        :key="`cap-${row.id}`"
+        :row="row"
+        @changed="reload"
+      />
+    </template>
+
+    <!-- 调度计划：只用已确认容量计算余量的派发面板 -->
+    <template v-if="meta.key === 'scheduler'">
+      <SchedulerDispatchPanel
+        v-for="row in rows"
+        :key="`dispatch-${row.id}`"
+        :row="row"
+        @changed="reload"
+      />
+    </template>
+
     <form class="filter-bar" @submit.prevent="reload">
       <label v-for="field in filterFields" :key="field" class="filter-item">
         <span>{{ field }}</span>
@@ -104,6 +124,8 @@ import {
   runAction as applyAction,
 } from '@/api/backend-service'
 import type { EntryRow } from '@/data/types'
+import ScalableCapacityPanel from '@/components/ScalableCapacityPanel.vue'
+import SchedulerDispatchPanel from '@/components/SchedulerDispatchPanel.vue'
 
 const props = defineProps<{ moduleKey: string }>()
 const meta = moduleMeta(props.moduleKey)

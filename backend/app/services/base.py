@@ -71,6 +71,17 @@ class BaseModuleService:
         entry["abnormal"] = action in self.NEGATIVE_ACTIONS
         return entry, f"{self.ENTITY}已{action}"
 
+    def handle_action(
+        self, entry_id: int, action: str, payload: dict[str, Any]
+    ) -> tuple[dict[str, Any] | None, str, dict[str, Any] | None]:
+        """富载荷动作通道默认实现：退回两参 run_action。
+
+        子类可覆盖以接收 receipt_id / actual_instances / prediction 等字段，
+        返回 (entry, message, extra_result)。
+        """
+        entry, message = self.run_action(entry_id, action)
+        return entry, message, None
+
     def domain_snapshot(self) -> dict[str, Any]:
         """输出模块级数据质量快照，供跨模块消费和题位源码锚点使用。"""
         rows = store.rows(self.MODULE)
